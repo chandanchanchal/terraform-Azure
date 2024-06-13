@@ -3,8 +3,7 @@ resource "azurerm_network_interface" "nics" {
  for_each               = var.regions
  name                   = "nic-${each.value.location}-vm"
  resource_group_name    = azurerm_resource_group.rg-host[each.key].name
- location               =
-
+ location               = each.value.location
  ip_configuration = {
   name                             = "internal"
   subnet_id                        =  azurerm_subnet.subnet-con[each.key].id
@@ -23,10 +22,10 @@ resource "azurerm_windows_virtual_machine" "vms" {
  admin_username             = var.adminuser
  admin_password             =  azurerm_kye_vault_secret.vmpassword.value
  enable_automatic_updates   = "true"
- network_interface_ids = {
+ network_interface_ids = [
    azurerm_network_interface.nics[each.key].id,
  
- }
+ ]
   
 os_disk = {
   caching  = "ReadWrite"
@@ -42,7 +41,7 @@ source_image_reference {
 }
 
 # setup Script to instal IIS 
-reource "azurerm_virtual_machine_extension" "vmsetup" {
+resource "azurerm_virtual_machine_extension" "vmsetup" {
 for_each            = var.regions
 name                = "cse-${each.value.location}-01"
 virtual_machine_id  = azurerm_windows_virtual_machine.vms[each.key].id
@@ -53,19 +52,18 @@ type_handler_version = "1.9"
  protected_settings = <<PROTECTED_SETTINGS
  { 
     "commandToExecute": "powershell.exe -Command \"./webserver_VMSetup.ps1; exit 0;\""
+  }  
  PROTECTED_SETTINGS 
-}
-settings = <<SETTINGS
- {
-   "fileUris": [
-   
+
+ settings = <<SETTINGS
+   {
+     "fileUris": [   
        "https://github.com/chandanchanchal/devops/blob/master/webserver_VMSetup.ps1"
-   ]
- 
- } 
-  SETTINGS
- 
- }
+      ] 
+    } 
+    SETTINGS   
+
+  }  
 
 
 
